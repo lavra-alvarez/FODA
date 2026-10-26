@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Presentación interactiva del análisis FODA de UTMentor.">
+  <title>FODA · UTMentor</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23080b1c'/%3E%3Cpath d='M14 16h36v8H36v26h-8V24H14z' fill='%236d5dfc'/%3E%3Ccircle cx='47' cy='46' r='7' fill='%23ff4fb8'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #070918;
+      --panel: rgba(19, 23, 52, .72);
+      --line: rgba(255, 255, 255, .12);
+      --text: #f7f7ff;
+      --muted: #aeb3d0;
+      --blue: #6259ff;
+      --cyan: #42d7ff;
+      --pink: #ff4fa8;
+      --amber: #ffba49;
+      --green: #65e6a7;
+      --shadow: 0 28px 80px rgba(0, 0, 0, .38);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); }
+    body {
+      overflow: hidden;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 15% 15%, rgba(98, 89, 255, .18), transparent 34%),
+        radial-gradient(circle at 90% 85%, rgba(255, 79, 168, .12), transparent 30%),
+        var(--bg);
+    }
+
+    button { font: inherit; }
+    button:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
+
+    .grain, .grid {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .grain { opacity: .06; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.45'/%3E%3C/svg%3E"); }
+    .grid {
+      opacity: .22;
+      background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-size: 72px 72px;
+      mask-image: linear-gradient(to bottom, transparent, #000 24%, #000 75%, transparent);
+    }
+
+    .topbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      height: 72px;
+      padding: 0 3vw;
+      background: linear-gradient(to bottom, rgba(7, 9, 24, .94), rgba(7, 9, 24, 0));
+    }
+    .brand { display: flex; align-items: center; gap: .75rem; min-width: max-content; }
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      font-weight: 900;
+      background: linear-gradient(145deg, var(--blue), var(--pink));
+      box-shadow: 0 8px 24px rgba(98, 89, 255, .38);
+    }
+    .brand-text { font-weight: 800; letter-spacing: -.02em; }
+    .brand-text span { color: var(--muted); font-weight: 500; }
+
+    .progress-track { flex: 1; height: 3px; background: rgba(255,255,255,.1); border-radius: 99px; overflow: hidden; }
+    .progress-bar { width: 0; height: 100%; background: linear-gradient(90deg, var(--blue), var(--pink)); transition: width .55s cubic-bezier(.22,1,.36,1); }
+    .counter { min-width: 4rem; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .counter strong { color: var(--text); font-size: 1.1rem; }
+
+    .deck { position: relative; z-index: 2; width: 100vw; height: 100svh; }
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      align-items: center;
+      padding: 7.5rem 7vw 6.5rem;
+      opacity: 0;
+      visibility: hidden;
+      transform: translate3d(7%, 0, 0) scale(.96);
+      filter: blur(8px);
+      transition: opacity .48s ease, transform .7s cubic-bezier(.22,1,.36,1), filter .48s ease, visibility 0s .7s;
+    }
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translate3d(0, 0, 0) scale(1);
+      filter: blur(0);
+      transition-delay: 0s;
+    }
+    .slide.before { transform: translate3d(-7%, 0, 0) scale(.96); }
+    .slide-inner { width: min(1240px, 100%); margin: auto; }
+
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      margin-bottom: 1rem;
+      color: var(--cyan);
+      font-size: .82rem;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before { content: ""; width: 32px; height: 2px; background: currentColor; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { font-size: clamp(4rem, 9vw, 8rem); line-height: .86; letter-spacing: -.075em; margin-bottom: 1.5rem; }
+    h2 { font-size: clamp(2.7rem, 5.3vw, 5.5rem); line-height: .92; letter-spacing: -.06em; margin-bottom: 1rem; }
+    h3 { font-size: 1.25rem; letter-spacing: -.02em; }
+    .lead { max-width: 760px; color: var(--muted); font-size: clamp(1.05rem, 1.7vw, 1.35rem); line-height: 1.55; }
+    .accent { color: var(--pink); }
+    .outline { color: transparent; -webkit-text-stroke: 1px rgba(255,255,255,.48); }
+
+    .cover-layout { display: grid; grid-template-columns: 1.25fr .75fr; align-items: end; gap: 6vw; }
+    .course-tag { display: inline-flex; gap: .6rem; align-items: center; padding: .65rem .9rem; border: 1px solid var(--line); border-radius: 99px; color: var(--muted); background: rgba(255,255,255,.04); }
+    .course-tag b { color: var(--text); }
+    .team { padding: 1.4rem; border-left: 1px solid var(--line); }
+    .team-label { color: var(--muted); font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; }
+    .team ul { list-style: none; padding: 0; margin: 1rem 0 0; display: grid; gap: .7rem; }
+    .team li { display: grid; grid-template-columns: 28px 1fr; gap: .65rem; align-items: center; color: #d9dcf2; }
+    .team li span { color: var(--pink); font-size: .72rem; font-weight: 800; }
+
+    .lens-grid { display: grid; grid-template-columns: .8fr 1.2fr; gap: 4vw; align-items: center; }
+    .lens-orbit { position: relative; aspect-ratio: 1; max-width: 520px; margin: auto; display: grid; place-items: center; }
+    .orbit-ring { position: absolute; inset: 8%; border: 1px solid rgba(255,255,255,.17); border-radius: 50%; animation: spin 22s linear infinite; }
+    .orbit-ring:nth-child(2) { inset: 23%; border-style: dashed; animation-direction: reverse; animation-duration: 16s; }
+    .orbit-core { width: 34%; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; text-align: center; font-weight: 900; background: linear-gradient(145deg, rgba(98,89,255,.9), rgba(255,79,168,.8)); box-shadow: 0 0 70px rgba(98,89,255,.34); }
+    .orbit-tag { position: absolute; display: grid; place-items: center; width: 58px; height: 58px; border-radius: 16px; background: #111633; border: 1px solid var(--line); font-weight: 900; box-shadow: var(--shadow); }
+    .orbit-tag:nth-of-type(1) { top: 2%; left: 47%; color: var(--blue); }
+    .orbit-tag:nth-of-type(2) { top: 23%; right: 2%; color: var(--amber); }
+    .orbit-tag:nth-of-type(3) { bottom: 20%; right: 4%; color: var(--pink); }
+    .orbit-tag:nth-of-type(4) { bottom: 2%; left: 44%; color: var(--cyan); }
+    .orbit-tag:nth-of-type(5) { bottom: 22%; left: 2%; color: var(--green); }
+    .orbit-tag:nth-of-type(6) { top: 22%; left: 3%; color: #c6a7ff; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .logic-list { display: grid; gap: .8rem; margin-top: 2rem; }
+    .logic-item { display: grid; grid-template-columns: 34px 1fr; gap: 1rem; align-items: start; color: var(--muted); }
+    .logic-item b { color: var(--text); }
+    .logic-index { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 10px; color: var(--cyan); font-weight: 800; }
+
+    .matrix-wrap { display: grid; grid-template-columns: .65fr 1.35fr; gap: 3vw; align-items: center; }
+    .matrix { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; perspective: 1000px; }
+    .quadrant {
+      position: relative;
+      min-height: 210px;
+      padding: 1.35rem;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--panel);
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform .3s ease, border-color .3s ease, background .3s ease;
+    }
+    .quadrant::after { content: ""; position: absolute; inset: auto -20% -70% 30%; aspect-ratio: 1; border-radius: 50%; background: currentColor; opacity: .12; filter: blur(18px); }
+    .quadrant:hover, .quadrant:focus-visible { transform: translateY(-5px); border-color: currentColor; }
+    .quadrant strong { display: block; font-size: 3rem; line-height: 1; margin-bottom: .7rem; }
+    .quadrant p { color: var(--muted); line-height: 1.45; margin: 0; }
+    .q-f { color: var(--green); }
+    .q-o { color: var(--cyan); }
+    .q-d { color: var(--amber); }
+    .q-a { color: var(--pink); }
+    .axis-label { margin-top: 1rem; display: flex; justify-content: space-between; color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .12em; }
+
+    .detail-grid { display: grid; grid-template-columns: .46fr 1.54fr; gap: 3vw; align-items: start; }
+    .section-code { font-size: clamp(7rem, 16vw, 14rem); line-height: .7; font-weight: 900; letter-spacing: -.1em; opacity: .95; }
+    .section-meta { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); }
+    .section-meta b { display: block; color: var(--text); margin-bottom: .3rem; }
+    .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: .8rem; }
+    .fact-card {
+      position: relative;
+      min-height: 142px;
+      padding: 1.15rem 1.2rem 1.1rem 3.3rem;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(16, 20, 46, .72);
+      color: #dfe2f5;
+      font-size: 1rem;
+      line-height: 1.45;
+      cursor: pointer;
+      transition: transform .25s ease, background .25s ease, border-color .25s ease;
+    }
+    .fact-card:hover, .fact-card.expanded { transform: translateY(-3px); background: rgba(28, 34, 72, .9); border-color: currentColor; }
+    .fact-card span { position: absolute; top: 1rem; left: 1rem; font-weight: 900; font-size: .8rem; opacity: .8; }
+    .fact-card small { display: block; max-height: 0; overflow: hidden; color: var(--muted); line-height: 1.45; transition: max-height .35s ease, margin .35s ease; }
+    .fact-card.expanded small { max-height: 110px; margin-top: .65rem; }
+    .tone-f { color: var(--green); }
+    .tone-d { color: var(--amber); }
+    .tone-o { color: var(--cyan); }
+    .tone-a { color: var(--pink); }
+
+    .strategy-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 2rem; }
+    .strategy {
+      min-height: 176px;
+      padding: 1.5rem;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: linear-gradient(145deg, rgba(25,29,60,.85), rgba(12,15,35,.75));
+    }
+    .strategy-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    .strategy-code { font-size: 2rem; font-weight: 900; }
+    .strategy-type { color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-size: .75rem; }
+    .strategy p { color: #d9dcf2; line-height: 1.5; margin: 1.2rem 0 0; }
+
+    .conclusion-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 5vw; align-items: center; }
+    .thesis { font-size: clamp(2rem, 4vw, 4.2rem); line-height: 1.08; letter-spacing: -.05em; }
+    .priority-list { display: grid; gap: .7rem; }
+    .priority { display: grid; grid-template-columns: 48px 1fr; gap: 1rem; align-items: center; padding: 1rem; border: 1px solid var(--line); border-radius: 15px; background: rgba(255,255,255,.035); }
+    .priority span { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 14px; background: rgba(98,89,255,.15); color: var(--cyan); font-weight: 900; }
+    .priority b { display: block; margin-bottom: .15rem; }
+    .priority small { color: var(--muted); font-size: .9rem; }
+
+    .controls { position: fixed; z-index: 40; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 3vw 1.6rem; background: linear-gradient(to top, rgba(7,9,24,.96), rgba(7,9,24,0)); }
+    .nav-group { display: flex; gap: .55rem; }
+    .nav-button {
+      min-width: 46px;
+      height: 46px;
+      padding: 0 1rem;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      color: var(--text);
+      background: rgba(17, 21, 46, .78);
+      cursor: pointer;
+      transition: transform .2s ease, background .2s ease;
+    }
+    .nav-button:hover:not(:disabled) { transform: translateY(-2px); background: rgba(36, 42, 84, .9); }
+    .nav-button:disabled { opacity: .3; cursor: not-allowed; }
+    .nav-button.primary { border: 0; background: linear-gradient(135deg, var(--blue), #8d46e8); }
+    .hint { color: var(--muted); font-size: .82rem; }
+    .dots { display: flex; gap: .45rem; }
+    .dot { width: 22px; height: 6px; padding: 0; border: 0; border-radius: 99px; background: rgba(255,255,255,.18); cursor: pointer; transition: width .25s ease, background .25s ease; }
+    .dot.active { width: 42px; background: linear-gradient(90deg, var(--blue), var(--pink)); }
+
+    .flash { animation: flash .5s ease; }
+    @keyframes flash { 50% { filter: brightness(1.35); } }
+
+    @media (max-width: 900px) {
+      .slide { padding: 6.2rem 5vw 6rem; overflow-y: auto; align-items: start; }
+      .slide-inner { margin-top: auto; margin-bottom: auto; }
+      .cover-layout, .lens-grid, .matrix-wrap, .detail-grid, .conclusion-grid { grid-template-columns: 1fr; }
+      .cover-layout { gap: 2rem; }
+      .team { border-left: 0; border-top: 1px solid var(--line); padding-left: 0; }
+      .lens-orbit { width: min(70vw, 380px); }
+      .matrix-wrap { gap: 2rem; }
+      .detail-grid { gap: 1.5rem; }
+      .section-code { font-size: 6rem; }
+      .section-meta { display: none; }
+      .cards { grid-template-columns: 1fr 1fr; }
+      .fact-card { min-height: 126px; }
+      .strategy-grid { grid-template-columns: 1fr 1fr; }
+      .hint { display: none; }
+    }
+
+    @media (max-width: 620px) {
+      .topbar { height: 62px; padding: 0 1rem; }
+      .brand-text span { display: none; }
+      .counter { min-width: 3rem; }
+      .slide { padding: 5.3rem 1rem 5.8rem; }
+      h1 { font-size: 3.7rem; }
+      h2 { font-size: 2.5rem; }
+      .lead { font-size: 1rem; }
+      .course-tag { align-items: flex-start; border-radius: 16px; }
+      .lens-orbit { width: 76vw; }
+      .orbit-tag { width: 46px; height: 46px; border-radius: 12px; }
+      .matrix { grid-template-columns: 1fr 1fr; }
+      .quadrant { min-height: 154px; padding: 1rem; }
+      .quadrant strong { font-size: 2.2rem; }
+      .quadrant p { font-size: .88rem; }
+      .cards, .strategy-grid { grid-template-columns: 1fr; }
+      .fact-card { min-height: auto; }
+      .controls { padding: .8rem 1rem 1.1rem; }
+      .dots { display: none; }
+      .nav-button { height: 43px; min-width: 43px; padding: 0 .8rem; }
+      .thesis { font-size: 2.2rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+  <div class="grid"></div>
+
+  <header class="topbar">
+    <div class="brand"><div class="brand-mark">U</div><div class="brand-text">UTMentor <span>/ análisis estratégico</span></div></div>
+    <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="counter"><strong id="currentNumber">01</strong> / <span id="totalNumber">08</span></div>
+  </header>
+
+  <main class="deck" id="deck">
+    <section class="slide active" aria-labelledby="cover-title">
+      <div class="slide-inner cover-layout">
+        <div>
+          <div class="eyebrow">Administración y Dirección Empresarial</div>
+          <h1 id="cover-title">FODA<br><span class="outline">UTMentor</span></h1>
+          <p class="lead">Análisis interno y externo de una plataforma universitaria de asesoría académica entre estudiantes.</p>
+          <div class="course-tag"><b>Objeto de análisis</b><span>Viabilidad estratégica y condiciones del entorno</span></div>
+        </div>
+        <div class="team">
+          <div class="team-label">Equipo</div>
+          <ul>
+            <li><span>01</span>Alvarez Guevara Laura Jocelyn</li>
+            <li><span>02</span>Cruz Victoriano Emmanuel</li>
+            <li><span>03</span>Luna Lopez Bethel Dinairis</li>
+            <li><span>04</span>Perez Bautista Aline Briseida</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" aria-labelledby="context-title">
+      <div class="slide-inner lens-grid">
+        <div class="lens-orbit" aria-label="Factores PESTEL">
+          <div class="orbit-ring"></div><div class="orbit-ring"></div>
+          <div class="orbit-core">Entorno<br>UTMentor</div>
+          <div class="orbit-tag">P</div><div class="orbit-tag">E</div><div class="orbit-tag">S</div>
+          <div class="orbit-tag">T</div><div class="orbit-tag">E</div><div class="orbit-tag">L</div>
+        </div>
+        <div>
+          <div class="eyebrow">Punto de partida</div>
+          <h2 id="context-title">El FODA se apoya en el <span class="accent">entorno PESTEL</span></h2>
+          <p class="lead">Se consideran el respaldo institucional, los recursos disponibles, las necesidades sociales, la infraestructura tecnológica, el impacto ambiental y las obligaciones legales.</p>
+          <div class="logic-list">
+            <div class="logic-item"><div class="logic-index">IN</div><div><b>Fortalezas y debilidades</b><br>Condiciones internas y decisiones de diseño del proyecto.</div></div>
+            <div class="logic-item"><div class="logic-index">EX</div><div><b>Oportunidades y amenazas</b><br>Factores externos que UTMentor no controla directamente.</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" aria-labelledby="matrix-title">
+      <div class="slide-inner matrix-wrap">
+        <div>
+          <div class="eyebrow">Mapa general</div>
+          <h2 id="matrix-title">Cuatro perspectivas, <span class="accent">una decisión</span></h2>
+          <p class="lead">Haz clic en un cuadrante para avanzar directamente a su análisis.</p>
+        </div>
+        <div>
+          <div class="matrix">
+            <button class="quadrant q-f" data-target="3"><strong>F</strong><h3>Fortalezas</h3><p>Capacidades internas que favorecen el proyecto.</p></button>
+            <button class="quadrant q-o" data-target="5"><strong>O</strong><h3>Oportunidades</h3><p>Condiciones del entorno que pueden aprovecharse.</p></button>
+            <button class="quadrant q-d" data-target="4"><strong>D</strong><h3>Debilidades</h3><p>Limitaciones internas que requieren atención.</p></button>
+            <button class="quadrant q-a" data-target="6"><strong>A</strong><h3>Amenazas</h3><p>Factores externos que pueden reducir su viabilidad.</p></button>
+          </div>
+          <div class="axis-label"><span>Interno</span><span>Externo</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" aria-labelledby="strength-title">
+      <div class="slide-inner detail-grid tone-f">
+        <div><div class="section-code">F</div><div class="section-meta"><b>Origen interno</b>Ventaja favorable</div></div>
+        <div>
+          <div class="eyebrow">Fortalezas</div><h2 id="strength-title">Lo que UTMentor hace <span class="accent">a su favor</span></h2>
+          <div class="cards">
+            <button class="fact-card"><span>01</span>Propósito social y educativo definido.<small>Atiende rezago académico y busca contribuir a la permanencia universitaria.</small></button>
+            <button class="fact-card"><span>02</span>Aprovechamiento del talento estudiantil.<small>Activa el conocimiento de quienes ya aprobaron materias complejas.</small></button>
+            <button class="fact-card"><span>03</span>Disponibilidad más flexible.<small>Permite organizar apoyo en noches y fines de semana.</small></button>
+            <button class="fact-card"><span>04</span>Comunicación cercana entre pares.<small>Reduce la intimidación y facilita explicaciones con lenguaje compartido.</small></button>
+            <button class="fact-card"><span>05</span>Valor para ambas partes.<small>El asesorado recibe apoyo; el asesor fortalece liderazgo, comunicación y enseñanza.</small></button>
+            <button class="fact-card"><span>06</span>Modelo web de alcance viable.<small>Perfiles, agenda, reputación y acceso responsive sin infraestructura excesiva.</small></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" aria-labelledby="weakness-title">
+      <div class="slide-inner detail-grid tone-d">
+        <div><div class="section-code">D</div><div class="section-meta"><b>Origen interno</b>Condición desfavorable</div></div>
+        <div>
+          <div class="eyebrow">Debilidades</div><h2 id="weakness-title">Lo que debe <span class="accent">fortalecerse</span></h2>
+          <div class="cards">
+            <button class="fact-card"><span>01</span>La identidad no demuestra dominio académico.<small>El correo institucional verifica pertenencia, pero no conocimientos o habilidades para asesorar.</small></button>
+            <button class="fact-card"><span>02</span>Calidad dependiente de los usuarios.<small>Las explicaciones y materiales podrían ser imprecisos o desactualizados.</small></button>
+            <button class="fact-card"><span>03</span>Necesidad de una masa crítica.<small>Sin suficientes asesores, las solicitudes no podrán atenderse oportunamente.</small></button>
+            <button class="fact-card"><span>04</span>Oferta desigual entre materias.<small>Las áreas especializadas pueden quedarse sin asesores disponibles.</small></button>
+            <button class="fact-card"><span>05</span>Procesos aún no delimitados.<small>Falta precisar capacitación, supervisión, incentivos y acompañamiento emocional.</small></button>
+            <button class="fact-card"><span>06</span>Impacto difícil de atribuir.<small>La plataforma puede contribuir a la permanencia, pero no garantizar por sí sola menor deserción.</small></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" aria-labelledby="opportunity-title">
+      <div class="slide-inner detail-grid tone-o">
+        <div><div class="section-code">O</div><div class="section-meta"><b>Origen externo</b>Condición favorable</div></div>
+        <div>
+          <div class="eyebrow">Oportunidades · PESTEL</div><h2 id="opportunity-title">El entorno abre <span class="accent">posibilidades</span></h2>
+          <div class="cards">
+            <button class="fact-card"><span>P</span>Prioridad institucional de permanencia.<small>UTMentor puede complementar tutorías, bienestar y prevención del rezago.</small></button>
+            <button class="fact-card"><span>E</span>Aprovechamiento de recursos internos.<small>El talento estudiantil puede ampliar la cobertura con costos operativos contenidos.</small></button>
+            <button class="fact-card"><span>S</span>Demanda de apoyo cercano y pertenencia.<small>Los estudiantes necesitan espacios menos intimidantes y comunidades de estudio.</small></button>
+            <button class="fact-card"><span>T</span>Infraestructura digital disponible.<small>Web, notificaciones y videollamadas externas permiten lanzar un MVP funcional.</small></button>
+            <button class="fact-card"><span>E</span>Menos traslados y material físico.<small>La coordinación digital puede reducir movimientos innecesarios dentro y fuera del campus.</small></button>
+            <button class="fact-card"><span>L</span>La formalización puede diferenciar.<small>Políticas de privacidad e integridad claras ofrecen mayor confianza que los grupos informales.</small></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" aria-labelledby="threat-title">
+      <div class="slide-inner detail-grid tone-a">
+        <div><div class="section-code">A</div><div class="section-meta"><b>Origen externo</b>Condición desfavorable</div></div>
+        <div>
+          <div class="eyebrow">Amenazas · PESTEL</div><h2 id="threat-title">El entorno también <span class="accent">presiona</span></h2>
+          <div class="cards">
+            <button class="fact-card"><span>P</span>Resistencia institucional.<small>La universidad podría percibir la plataforma como competencia o riesgo académico.</small></button>
+            <button class="fact-card"><span>E</span>Recursos limitados.<small>Desarrollo, seguridad, moderación, operación e incentivos necesitan presupuesto.</small></button>
+            <button class="fact-card"><span>S</span>Estigma y riesgos de convivencia.<small>Vergüenza al pedir ayuda, acoso o interacciones inadecuadas pueden frenar la adopción.</small></button>
+            <button class="fact-card"><span>T</span>Competencia y ciberseguridad.<small>IA, redes sociales y plataformas establecidas compiten mientras crecen los riesgos digitales.</small></button>
+            <button class="fact-card"><span>E</span>Beneficio ambiental limitado.<small>El servicio depende de infraestructura tecnológica y consumo energético.</small></button>
+            <button class="fact-card"><span>L</span>Privacidad e integridad académica.<small>Datos personales, plagio y materiales protegidos exigen controles formales.</small></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" aria-labelledby="strategy-title">
+      <div class="slide-inner">
+        <div class="eyebrow">Cruce estratégico</div>
+        <h2 id="strategy-title">Del diagnóstico a la <span class="accent">acción</span></h2>
+        <div class="strategy-grid">
+          <article class="strategy tone-f"><div class="strategy-head"><div class="strategy-code">FO</div><div class="strategy-type">Potenciar</div></div><p>Usar la cercanía entre estudiantes y la disponibilidad extendida para complementar los programas institucionales de permanencia.</p></article>
+          <article class="strategy tone-o"><div class="strategy-head"><div class="strategy-code">DO</div><div class="strategy-type">Fortalecer</div></div><p>Buscar respaldo universitario para validar y capacitar asesores, equilibrar la oferta e implementar incentivos.</p></article>
+          <article class="strategy tone-d"><div class="strategy-head"><div class="strategy-code">FA</div><div class="strategy-type">Diferenciar</div></div><p>Competir con IA y redes informales mediante contexto local, confianza, acompañamiento humano y seguimiento.</p></article>
+          <article class="strategy tone-a"><div class="strategy-head"><div class="strategy-code">DA</div><div class="strategy-type">Proteger</div></div><p>Iniciar con un piloto acotado, protocolos de seguridad, materias seleccionadas y métricas antes de escalar.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" aria-labelledby="conclusion-title">
+      <div class="slide-inner conclusion-grid">
+        <div>
+          <div class="eyebrow">Conclusión</div>
+          <h2 id="conclusion-title">La ventaja es la <span class="accent">cercanía</span>.<br>El reto es la <span class="outline">confianza</span>.</h2>
+          <p class="lead">UTMentor es estratégicamente viable si logra asegurar calidad, disponibilidad y protección sin perder la horizontalidad que distingue a la asesoría entre pares.</p>
+        </div>
+        <div class="priority-list">
+          <div class="priority"><span>01</span><div><b>Validar la propuesta</b><small>Piloto con una comunidad y materias seleccionadas.</small></div></div>
+          <div class="priority"><span>02</span><div><b>Proteger la confianza</b><small>Capacitación, reportes, privacidad e integridad.</small></div></div>
+          <div class="priority"><span>03</span><div><b>Medir la contribución</b><small>Cobertura, asistencia, recurrencia y pertenencia.</small></div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="controls">
+    <div class="nav-group">
+      <button class="nav-button" id="prevButton" aria-label="Diapositiva anterior">←</button>
+      <button class="nav-button primary" id="nextButton" aria-label="Diapositiva siguiente">Siguiente&nbsp; →</button>
+    </div>
+    <div class="dots" id="dots" aria-label="Navegación por diapositivas"></div>
+    <div class="hint">Usa ← →, espacio o haz clic</div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
